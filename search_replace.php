@@ -31,10 +31,10 @@ class search_replace
      * @access private
      * @var    array
      */
-    private $ext_array;
+    private $set_extension = array();
 
     /**
-     * Array of modified file paths
+     * Array of search file paths
      *
      * @access private
      * @var    array
@@ -50,12 +50,12 @@ class search_replace
     private $file_cnt = 0;
 
     /**
-     * Iterator type flag - single:false or recursive:true
+     * Recursive iterator type flag
      *
      * @access private
      * @var    bool
      */
-    private $iterator;
+    private $set_recursive = false;
 
     /**
      * Match case flag
@@ -63,7 +63,7 @@ class search_replace
      * @access private
      * @var    bool
      */
-    private $match_case;
+    private $set_case = false;
 
     /**
      * Match whole word flag
@@ -71,7 +71,7 @@ class search_replace
      * @access private
      * @var    bool
      */
-    private $match_whole;
+    private $set_whole_word = false;
 
     /**
      * Count of modified files
@@ -87,7 +87,7 @@ class search_replace
      * @access private
      * @var    bool
      */
-    private $reg_expression;
+    private $set_regex;
 
     /**
      * String to be searched - needle
@@ -105,6 +105,10 @@ class search_replace
      */
     private $search_replacement;
 
+    /**********************************************
+     * Constructor
+     *********************************************/
+
     /**
      * Constructor
      *
@@ -112,24 +116,17 @@ class search_replace
      * @param  str   $dir
      * @param  mixed $needle
      * @param  mixed $replacement
-     * @param  str   $ext
-     * @param  bool  $reg_exp
-     * @param  bool  $iterator
-     * @param  bool  $whole
-     * @param  bool  $case
      */
-    public function __construct( $dir, $needle=null, $replacement=null, $ext=null, $reg_exp=false, $iterator=false, $whole=false, $case=false )
+    public function __construct( $dir, $needle, $replacement )
     {
         $this->dir_path = $dir;
-        $this->ext_array = array_filter( explode( ',', strtolower( $ext ) ) );
-        $this->iterator = $iterator;
         $this->search_needle = trim( $needle );
-        $this->search_replacement = $replacement;
-        $this->match_whole = $whole;
-        $this->match_case = $case;
-        $this->reg_expression = $reg_exp;
-        $this->search_replace_init();
+        $this->search_replacement = trim( $replacement );
     }
+
+    /**********************************************
+     * Private methods
+     *********************************************/
 
     /**
      * Verify occurance of needle in string using regex or strpos
@@ -142,11 +139,11 @@ class search_replace
     {
         $needle_cnt = false;
 
-        if ( $this->reg_expression )
+        if ( $this->set_regex )
         {
             $needle_cnt = $this->count_needle_regex( $string );
         }
-        elseif ( $this->match_whole )
+        elseif ( $this->set_whole_word )
         {
             $needle_cnt = $this->count_needle_whole_word( $string );
         }
@@ -167,7 +164,7 @@ class search_replace
      */
     private function count_needle_default( $string )
     {
-        if ( $this->match_case )
+        if ( $this->set_case )
         {
             $needle_cnt = strpos( $string, $this->search_needle );
         }
@@ -188,7 +185,7 @@ class search_replace
      */
     private function count_needle_regex( $string )
     {
-        $expression = ( $this->match_case ) ? "`{$this->search_needle}`uU" : "`{$this->search_needle}`iuU";
+        $expression = ( $this->set_case ) ? "`{$this->search_needle}`uU" : "`{$this->search_needle}`iuU";
 
         return ( preg_match( $expression, $string ) ) ? true : false;
     }
@@ -203,7 +200,7 @@ class search_replace
     private function count_needle_whole_word( $string )
     {
         $needle = preg_quote( $this->search_needle );
-        $expression = ( $this->match_case ) ? "`\b$needle\b`uU" : "`\b$needle\b`iuU";
+        $expression = ( $this->set_case ) ? "`\b$needle\b`uU" : "`\b$needle\b`iuU";
 
         return ( preg_match( $expression, $string ) ) ? true : false;
     }
@@ -230,7 +227,7 @@ class search_replace
             $return_value = ( substr_count( mime_content_type( $file ), 'text/' ) ) ? true : false;
         }
 
-        return $return_value;
+        return ( $this->set_mime ) ? true : $return_value;
     }
 
     /**
@@ -255,18 +252,6 @@ class search_replace
     }
 
     /**
-     * Return results
-     *
-     * @access public
-     * @return array
-     */
-    public function print_results()
-    {
-        //return number of files searched, modified, file path and number of replace instances
-        return array( $this->file_cnt, $this->mod_cnt, $this->file_array );
-    }
-
-    /**
      * Recursively iterates through directory and saves file if it meets search/replace arguments
      *
      * @access private
@@ -288,24 +273,6 @@ class search_replace
     }
 
     /**
-     * Call iterator methods
-     *
-     * @access private
-     * @return null
-     */
-    private function search_replace_init()
-    {
-        if ( $this->iterator )
-        {
-            $this->recursive_iterator();
-        }
-        else
-        {
-            $this->iterator();
-        }
-    }
-
-    /**
      * Performs string replacement functions
      *
      * @access private
@@ -319,11 +286,11 @@ class search_replace
 
         if ( $this->count_needle( $string ) )
         {
-            if ( $this->reg_expression )
+            if ( $this->set_regex )
             {
                 $replace = $this->string_replace_regex( $string );
             }
-            elseif ( $this->match_whole )
+            elseif ( $this->set_whole_word )
             {
                 $replace = $this->string_replace_whole_word( $string );
             }
@@ -354,7 +321,7 @@ class search_replace
     {
         $count = 0;
 
-        if ( $this->match_case )
+        if ( $this->set_case )
         {
             $replace = str_replace( $this->search_needle, $this->search_replacement, $string, $count );
         }
@@ -376,7 +343,7 @@ class search_replace
     private function string_replace_regex( $string )
     {
         $count = 0;
-        $expression = ( $this->match_case ) ? "`{$this->search_needle}`u" : "`{$this->search_needle}`iu";
+        $expression = ( $this->set_case ) ? "`{$this->search_needle}`u" : "`{$this->search_needle}`iu";
 
         $replace = preg_replace( $expression, $this->search_replacement, $string, -1, $count );
 
@@ -394,7 +361,7 @@ class search_replace
     {
         $count = 0;
         $needle = preg_quote( $this->search_needle );
-        $expression = ( $this->match_case ) ? "`\b$needle\b`u" : "`\b$needle\b`iu";
+        $expression = ( $this->set_case ) ? "`\b$needle\b`u" : "`\b$needle\b`iu";
 
         $replace = preg_replace( $expression, $this->search_replacement, $string, -1, $count );
 
@@ -425,13 +392,13 @@ class search_replace
         }
 
         //determine if user defined extension was requested
-        if ( count( $this->ext_array ) )
+        if ( count( $this->set_extension ) )
         {
-            $valid_ext = ( in_array( $file_ext, $this->ext_array ) ) ? true : false;
+            $valid_ext = ( in_array( $file_ext, $this->set_extension ) ) ? true : false;
         }
 
         //determine if is file, is readable and writable, is text/* mime type and an inclusive extension
-        if ( !$dir->isDot() && $dir->isFile() && $dir->isReadable() && $dir->isWritable() && $this->get_mime_type( $dir->getPathname() ) && $valid_ext )
+        if ( !$dir->isDot() && $dir->isFile() && $dir->isReadable() && $dir->isWritable()&& $this->get_mime_type( $dir->getPathname() ) && $valid_ext )
         {
             $this->file_cnt++;
             $return_value = true;
@@ -454,6 +421,104 @@ class search_replace
         {
             file_put_contents( $path, $replace );
         }
+    }
+
+    /**********************************************
+     * Public methods
+     *********************************************/
+
+    /**
+     * Perform search & replace and return results
+     *
+     * @access public
+     * @return array
+     */
+    public function get_results()
+    {
+        if ( $this->set_recursive )
+        {
+            $this->recursive_iterator();
+        }
+        else
+        {
+            $this->iterator();
+        }
+
+        //return number of files searched, modified, file path and number of replace instances
+        return array( $this->file_cnt, $this->mod_cnt, $this->file_array );
+    }
+
+    /**
+     * Set case-sensitive flag
+     *
+     * @access public
+     * @param  bool $case
+     * @return bool
+     */
+    public function set_case( $case=false )
+    {
+        $this->set_case = $case;
+    }
+
+    /**
+     * Set user defined inclusive extensions to search
+     *
+     * @access public
+     * @param  str $extension
+     * @return array
+     */
+    public function set_extension( $extension=null )
+    {
+        //setting this variable will overide $this->set_mime
+        $this->set_extension = array_filter( explode( ',', strtolower( $extension ) ) );
+    }
+
+    /**
+     * Set MIME type flag
+     *
+     * @access public
+     * @param  bool $mime
+     * @return bool
+     */
+    public function set_mime( $mime=false )
+    {
+        $this->set_mime = $mime;
+    }
+
+    /**
+     * Set search with regex flag
+     *
+     * @access public
+     * @param  bool $regex
+     * @return bool
+     */
+    public function set_regex( $regex=false )
+    {
+        $this->set_regex = $regex;
+    }
+
+    /**
+     * Set recursive iterator flag
+     *
+     * @access public
+     * @param  bool $recursive
+     * @return bool
+     */
+    public function set_recursive( $recursive=false )
+    {
+        $this->set_recursive = $recursive;
+    }
+
+    /**
+     * Set search whole word flag
+     *
+     * @access public
+     * @param  bool $whole_word
+     * @return bool
+     */
+    public function set_whole_word( $whole_word=false )
+    {
+        $this->set_whole_word = $whole_word;
     }
 }
 
